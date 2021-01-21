@@ -369,7 +369,7 @@ fn field13() {
 ```rust
 trait DerefField {
    type FieldType;
-   field deref_field: Target;
+   field deref_field: FieldType;
 }
 
 impl<T: DerefField> Deref for DerefField {
