@@ -6,18 +6,25 @@
 # Summary
 [summary]: #summary
 
-`field` is a item that represents field in `struct`
-`borrows` is a set of `field` that supports borrowing
+`field` is a item that represents field in `struct`.
+
+`borrows` is a set of `field` that supports borrowing.
+
+I'm not convinced about name `borrows`.
+maybe there will be a better name for it
 
 # Motivation
 [motivation]: #motivation
 ## field as item
 this allows traits to have field which needs to be implemented when implementing trait
+
 [related thread](https://internals.rust-lang.org/t/fields-in-traits/6933/13)
+
 and it is quite similar to [niko's rfc](https://github.com/nikomatsakis/fields-in-traits-rfc)
 
 ## borrows
 this helps partial borrowing
+
 [related issue](https://github.com/rust-lang/rfcs/issues/1215)
 
 # Guide-level explanation
@@ -70,9 +77,15 @@ fn field_of_field {
 
 ## `borrows`
 `borrows` is a set of `field` to borrow
-can be declared using `borrows` keyword
+
+`borrows` visualises partial borrow
+
+it can be declared using `borrows` keyword
+
 `borrows` can have `public` visibility
+
 putting `borrows` in declaration of `borrows` will flatten it
+
 so` Foo::{ .. }` and `Foo::{ Foo::{ .. } }` is same
 ```rust
 pub borrows borrows1 = Foo::{
@@ -151,6 +164,7 @@ pub borrows borrow6 = Bar::{
 ```
 ### borrowing
 `borrows` used in partial borrow
+
 you don't need to do this as current borrow checker automatically implements partial borrow in this case
 ```rust
 fn borrows_use() {
@@ -173,8 +187,11 @@ impl Foo {
 ...
 ```
 this example makes private field `Foo::x` accessible out of the module with `foo.x_another`
+
 `field` can have `public` visibility
+
 `field` can be declared with `field` keyword
+
 declared name should not conlfict with field name in `Foo`
 ```rust
 ...
@@ -230,6 +247,7 @@ trait Baz {
 ...
 ```
 you can declare `field` in trait block
+
 it needs to be implemented when struct implements the trait
 ```rust
 ...
@@ -245,6 +263,7 @@ borrow all fields of `Self`
 ...
 ```
 borrow all fields of `Baz`
+
 so it's parital borrow
 ```rust
 ...
@@ -254,6 +273,7 @@ so it's parital borrow
 ...
 ```
 you can declare `borrows` in trait block
+
 like in this case, if you don't initialize it it will need to be implemented when implementing trait
 ```rust
 ...
@@ -270,7 +290,7 @@ you can add required `borrows` to `Self::f` when implementing `Baz::field9`
 you can borrowed `Self::f` so you can call field9
 ...
     fn field10(&self.{ bar_x, Self::f }) {
-        self.field9();
+        self.field11();
     }
 ...
 ```
@@ -364,6 +384,7 @@ struct Example<T> {
 }
 
 impl<T> DerefField<T> for Example<T> {
+    type FieldType = T;
     field deref_field = self.value;
 }
 ```
@@ -371,13 +392,25 @@ impl<T> DerefField<T> for Example<T> {
 # Reference-level explanation
 [reference-level-explanation]: #reference-level-explanation
 
-This is the technical portion of the RFC. Explain the design in sufficient detail that:
+field should work like re-exporting in module level
 
-- Its interaction with other features is clear.
-- It is reasonably clear how the feature would be implemented.
-- Corner cases are dissected by example.
+there can be a field with different ident pointing same field
 
-The section should return to the examples given in the previous section, and explain more fully how the detailed proposal makes those examples work.
+field in trait object won't work but you can add a function that returns reference of field
+
+
+
+`&T::{ .... }` will work like a type which `&T` or `&mut T` or `&T::{ ..... }` can be implicitally casted into
+
+casting `&T` or `&mut T` into `&T::{ .... }` will borrow every field of it in braces
+
+and won't work if can't borrow it
+
+`&T::{ ... }` will work same as `&T` or `&mut T` in low level like `&mut T` does like `&T`
+
+trait fields will work by storing relative position in the memory
+
+
 
 # Drawbacks
 [drawbacks]: #drawbacks
@@ -394,19 +427,10 @@ Why should we *not* do this?
 # Prior art
 [prior-art]: #prior-art
 
-Discuss prior art, both the good and the bad, in relation to this proposal.
-A few examples of what this can include are:
+[partial borrow](https://github.com/rust-lang/rfcs/issues/1215)
 
-- For language, library, cargo, tools, and compiler proposals: Does this feature exist in other programming languages and what experience have their community had?
-- For community proposals: Is this done by some other community and what were their experiences with it?
-- For other teams: What lessons can we learn from what other communities have done here?
-- Papers: Are there any published papers or great posts that discuss this? If you have some relevant papers to refer to, this can serve as a more detailed theoretical background.
+[fields in trait](https://github.com/rust-lang/rfcs/pull/1546)
 
-This section is intended to encourage you as an author to think about the lessons from other languages, provide readers of your RFC with a fuller picture.
-If there is no prior art, that is fine - your ideas are interesting to us whether they are brand new or if it is an adaptation from other languages.
-
-Note that while precedent set by other languages is some motivation, it does not on its own motivate an RFC.
-Please also take into consideration that rust sometimes intentionally diverges from common language features.
 
 # Unresolved questions
 [unresolved-questions]: #unresolved-questions
@@ -418,20 +442,8 @@ Please also take into consideration that rust sometimes intentionally diverges f
 # Future possibilities
 [future-possibilities]: #future-possibilities
 
-Think about what the natural extension and evolution of your proposal would
-be and how it would affect the language and project as a whole in a holistic
-way. Try to use this section as a tool to more fully consider all possible
-interactions with the project and language in your proposal.
-Also consider how this all fits into the roadmap for the project
-and of the relevant sub-team.
+something like partial move will be implemented in future
+then name of `borrows` will need to be changed
 
-This is also a good place to "dump ideas", if they are out of scope for the
-RFC you are writing but otherwise related.
-
-If you have tried and cannot think of any future possibilities,
-you may simply state that you cannot think of anything.
-
-Note that having something written down in the future-possibilities section
-is not a reason to accept the current or a future RFC; such notes should be
-in the section on motivation or rationale in this or subsequent RFCs.
-The section merely provides additional information.
+we won't need to add `get()` or `get_mut()` for every field the trait is using
+and now it will only borrow the exact field
